@@ -13,6 +13,7 @@ Supported jobs:
 ncu-ci <command>
 
 Commands:
+  ncu-ci capacity [job]     Check whether a Jenkins job has capacity for another build
   ncu-ci rate <type>        Calculate the green rate of a CI job in the last 100
                             runs
   ncu-ci walk <type>        Walk the CI and display the failures
@@ -33,6 +34,25 @@ Options:
   --markdown <path>  Write the results as markdown to <path>            [string]
   --help             Show help                                         [boolean]
 ```
+
+### `ncu-ci capacity [job]`
+
+Check a Jenkins job's configured concurrency limit against its running and queued
+builds. The job defaults to `node-test-commit`. This command only reads Jenkins;
+it does not start or resume builds and does not require GitHub credentials.
+
+The exit status is **2** when running and queued builds reach the configured
+limit, and **0** otherwise. A zero limit means unlimited concurrency. Missing or
+unsupported throttle settings, unavailable metadata, and other lookup failures
+are reported but return **0**, so automation can proceed when capacity is unknown.
+The command supports the throttle plugin's `project` total concurrency limit.
+
+```sh
+ncu-ci capacity
+ncu-ci capacity node-test-pull-request
+```
+
+The check is a snapshot and does not reserve capacity for a subsequent build.
 
 ### `ncu-ci rate <type>`
 

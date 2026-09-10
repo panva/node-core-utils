@@ -9,6 +9,7 @@ import {
 } from '../lib/ci/ci_type_parser.js';
 import { setVerbosityFromEnv } from '../lib/verbosity.js';
 import { listBuilds } from '../lib/ci/ci_utils.js';
+import { checkCapacity } from '../lib/ci/capacity.js';
 import { jobCache } from '../lib/ci/build-types/job.js';
 import { PRBuild } from '../lib/ci/build-types/pr_build.js';
 import { CommitBuild } from '../lib/ci/build-types/commit_build.js';
@@ -53,6 +54,23 @@ const commandKeys = [
 
 const args = yargs(hideBin(process.argv))
   .completion('completion')
+  .command({
+    command: 'capacity [job]',
+    desc: 'Check whether a Jenkins job has capacity for another build',
+    builder: (yargs) => {
+      yargs.positional('job', {
+        describe: 'Jenkins job name',
+        type: 'string',
+        default: 'node-test-commit'
+      }).check(({ job }) => {
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(job)) {
+          throw new Error('Expected a Jenkins job name');
+        }
+        return true;
+      });
+    },
+    handler
+  })
   .command({
     command: 'rate <type>',
     desc: 'Calculate the green rate of a CI job in the last 100 runs',
@@ -557,7 +575,7 @@ class DailyCommand extends CICommand {
 async function main(command, argv) {
   const cli = new CLI();
   const credentials = await auth({
-    github: true,
+    github: command !== 'capacity',
     jenkins: true
   });
   const request = new Request(credentials);
@@ -565,6 +583,9 @@ async function main(command, argv) {
   let commandHandler;
   // Prepare queue.
   switch (command) {
+    case 'capacity':
+      cli.setExitCode(await checkCapacity(cli, request, argv.job));
+      return;
     case 'run': {
       const maybeURL = URL.parse(argv.prid);
       if (maybeURL?.host === 'github.com') {
